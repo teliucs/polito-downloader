@@ -142,6 +142,23 @@ def _process_page(driver, current_folder: str, skip_existing: bool, cookies: dic
 
     # Trova tutti i link nella pagina
     links = driver.find_elements(By.TAG_NAME, "a")
+    
+    # DIAGNOSTICA MATERIALI
+    log_info(f"Processo pagina materiali. URL: {driver.current_url}")
+    log_info(f"Trovati {len(links)} link totali.")
+    count = 0
+    for l in links:
+        try:
+            href = l.get_attribute("href") or ""
+            text = l.text.strip().replace("\n", " ")
+            if text or href:
+                log_info(f"  Link {count}: text='{text}' | href='{href}'")
+                count += 1
+                if count >= 35:
+                    break
+        except Exception:
+            pass
+
     file_links = []
     folder_links = []
 
