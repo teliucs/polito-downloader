@@ -21,9 +21,10 @@
 
 ## 📋 Requisiti per iniziare
 
-Per far funzionare lo script hai bisogno di solo due cose sul tuo PC:
+Per far funzionare lo script hai bisogno di:
 1. **Python** (il linguaggio di programmazione con cui è scritto lo script)
-2. **Firefox** (il browser consigliato che lo script userà in background per scaricare i file)
+2. **Un browser web** tra **Firefox** e **Google Chrome** installati sul tuo PC.
+   - *Nota:* Lo script è configurato per usare **Firefox** come default, ma ha un **sistema di fallback automatico**: se non trova Firefox sul tuo PC, proverà ad avviare **Google Chrome** in automatico (e viceversa), in modo che tutto funzioni al primo colpo senza configurazioni manuali!
 
 ---
 
@@ -111,6 +112,11 @@ python polito_downloader.py --course "Nome Corso"
 python polito_downloader.py --no-headless
 ```
 
+### Usa Google Chrome invece di Firefox
+```bash
+python polito_downloader.py --browser chrome
+```
+
 ---
 
 ## 📁 Struttura dei materiali salvati
@@ -137,8 +143,12 @@ downloads/
 ### 1. Ricevo un errore che dice "Python non trovato"
 Assicurati di aver installato Python dal Microsoft Store (Windows) e di aver riavviato il terminale prima di eseguire lo script.
 
-### 2. Ricevo un errore relativo al Driver del Browser (Geckodriver)
-Lo script scarica e configura automaticamente i driver necessari. Assicurati solo di avere **Firefox** installato sul computer. Se preferisci Chrome, puoi installare Chrome sul PC.
+### 2. Ricevo un errore all'avvio del browser (es. Firefox/Chrome non trovato)
+Lo script scarica e configura automaticamente i driver di connessione (Geckodriver / Chromedriver). Assicurati solo di avere almeno **Firefox** o **Google Chrome** installati sul computer.
+
+Se desideri forzare l'uso di un browser specifico (ad esempio se li hai entrambi ma preferisci usarne uno specifico), puoi farlo avviando lo script con l'opzione apposita:
+- Per usare Chrome: `python polito_downloader.py --browser chrome`
+- Per usare Firefox: `python polito_downloader.py --browser firefox`
 
 ---
 

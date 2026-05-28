@@ -200,6 +200,12 @@ Esempi:
         type=str,
         help="Scarica solo un corso specifico (nome parziale, sovrascrive config.yaml)"
     )
+    parser.add_argument(
+        "--browser", "-b",
+        type=str,
+        choices=["firefox", "chrome"],
+        help="Browser da usare: 'firefox' o 'chrome' (sovrascrive config.yaml)"
+    )
 
     return parser.parse_args()
 
@@ -222,6 +228,8 @@ def main():
         config["download"]["headless"] = False
     if args.course:
         config["download"]["courses"] = [args.course]
+    if args.browser:
+        config["download"]["browser"] = args.browser
 
     # Chiedi credenziali in modo interattivo o caricale da config
     username, password = ask_credentials(config)

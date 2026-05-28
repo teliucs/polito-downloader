@@ -37,9 +37,17 @@ def create_driver(browser: str = "firefox", headless: bool = True, download_fold
     browser = browser.lower().strip()
 
     if browser == "firefox":
-        return _create_firefox(headless, download_folder)
-    elif browser in ("chrome", "chromium"):
+        driver = _create_firefox(headless, download_folder)
+        if driver is not None:
+            return driver
+        log_warn("Firefox non è disponibile o non può essere avviato. Provo ad utilizzare Google Chrome...")
         return _create_chrome(headless, download_folder)
+    elif browser in ("chrome", "chromium"):
+        driver = _create_chrome(headless, download_folder)
+        if driver is not None:
+            return driver
+        log_warn("Google Chrome non è disponibile o non può essere avviato. Provo ad utilizzare Firefox...")
+        return _create_firefox(headless, download_folder)
     else:
         log_error(f"Browser non supportato: '{browser}'. Usa 'firefox' o 'chrome'.")
         return None
