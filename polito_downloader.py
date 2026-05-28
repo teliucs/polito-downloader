@@ -61,6 +61,10 @@ DEFAULT_CONFIG = {
         "browser": "firefox",
         "courses": [],
         "skip_existing": True,
+    },
+    "credentials": {
+        "username": "",
+        "password": "",
     }
 }
 
@@ -69,15 +73,20 @@ def load_config(config_path: str) -> dict:
     """
     Carica il file di configurazione YAML.
     Il file e' opzionale: se non esiste vengono usati i valori di default.
-    NON contiene le credenziali (chieste interattivamente a runtime).
     """
-    merged = {"download": DEFAULT_CONFIG["download"].copy()}
+    merged = {
+        "download": DEFAULT_CONFIG["download"].copy(),
+        "credentials": DEFAULT_CONFIG["credentials"].copy()
+    }
 
     if os.path.isfile(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
             config = yaml.safe_load(f)
-        if config and "download" in config:
-            merged["download"].update(config["download"])
+        if config:
+            if "download" in config:
+                merged["download"].update(config["download"])
+            if "credentials" in config:
+                merged["credentials"].update(config["credentials"])
     else:
         log_warn(f"config.yaml non trovato, uso impostazioni di default.")
         log_warn("Copia config.yaml.example -> config.yaml per personalizzare le impostazioni.")
@@ -85,22 +94,40 @@ def load_config(config_path: str) -> dict:
     return merged
 
 
-def ask_credentials() -> tuple:
+def ask_credentials(config: dict) -> tuple:
     """
-    Chiede interattivamente matricola e password all'utente.
-    La password viene mascherata (non appare nel terminale).
+    Ottiene matricola e password.
+    Se sono nel file config.yaml usa quelle, altrimenti le chiede interattivamente.
+    La password viene chiesta in chiaro (richiesta utente) per evitare errori di digitazione.
     """
+    credentials = config.get("credentials", {})
+    username = credentials.get("username", "")
+    password = credentials.get("password", "")
+
+    if username and password:
+        log_info("Credenziali caricate da config.yaml.")
+        return str(username), str(password)
+
     print(f"\n{Fore.CYAN}--- Credenziali PoliTo ---{Style.RESET_ALL}")
-    username = input(f"  Matricola (es. s123456): ").strip()
+    
     if not username:
-        log_error("Matricola non inserita.")
-        sys.exit(1)
-    password = getpass.getpass(f"  Password:               ")
+        username = input(f"  Matricola (es. s123456): ").strip()
+        if not username:
+            log_error("Matricola non inserita.")
+            sys.exit(1)
+    else:
+        print(f"  Matricola: {username} (da config.yaml)")
+
     if not password:
-        log_error("Password non inserita.")
-        sys.exit(1)
+        password = input(f"  Password (in chiaro):   ").strip()
+        if not password:
+            log_error("Password non inserita.")
+            sys.exit(1)
+    else:
+        print(f"  Password: [caricata da config.yaml]")
+        
     print()
-    return username, password
+    return str(username), str(password)
 
 
 # ─────────────────────────────────────────────────────────────
@@ -163,8 +190,8 @@ def main():
     if args.course:
         config["download"]["courses"] = [args.course]
 
-    # Chiedi credenziali in modo interattivo
-    username, password = ask_credentials()
+    # Chiedi credenziali in modo interattivo o caricale da config
+    username, password = ask_credentials(config)
 
     # Impostazioni
     output_folder = config["download"]["output_folder"]

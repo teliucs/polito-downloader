@@ -2,9 +2,15 @@
 #  config.yaml.example — Copia questo file in config.yaml
 #  per personalizzare le impostazioni di download.
 #
-#  Le credenziali (matricola e password) NON vanno qui:
-#  lo script le chiede direttamente nel terminale ogni volta.
+#  Le credenziali (matricola e password) possono essere inserite
+#  qui sotto per evitare di digitarle ogni volta, oppure lasciate
+#  vuote per chiederle nel terminale (in chiaro).
 # ============================================================
+
+credentials:
+  username: ""            # Inserisci qui la tua matricola (es. "s123456")
+  password: ""            # Inserisci qui la tua password del portale
+
 
 download:
   # Cartella dove verranno salvati i materiali

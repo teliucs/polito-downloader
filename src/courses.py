@@ -33,12 +33,18 @@ def get_courses(driver, filter_list: list = None) -> list:
     Ritorna:
         Lista di dict: [{"name": "...", "url": "..."}, ...]
     """
-    log_info("Navigazione alla pagina dei corsi...")
+    log_info("Verifica pagina dei corsi...")
 
-    # Naviga alla home studente
-    driver.get(COURSES_URL)
-    # Diamo tempo alla Single Page App di caricare i dati dall'API
-    time.sleep(5)
+    # Naviga alla home studente solo se non ci siamo già, per evitare che Selenium si blocchi (hang) 
+    # caricando un URL con hash (#) su cui siamo già posizionati.
+    if "static/studente" not in driver.current_url.lower():
+        log_info("Navigazione alla pagina dei corsi...")
+        driver.get(COURSES_URL)
+        time.sleep(5)
+    else:
+        log_info("Siamo già sulla pagina corretta del portale studente. Salto la navigazione diretta.")
+        # Diamo comunque un piccolo tempo di assestamento per il caricamento dei dati asincroni
+        time.sleep(4)
 
     # Se la pagina richiede di nuovo il login, segnala l'errore
     if "idp.polito.it" in driver.current_url:
