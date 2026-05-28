@@ -101,38 +101,37 @@ def login(driver, username: str, password: str) -> bool:
 def _click_login_button(driver):
     """
     Cerca e clicca il pulsante di login nel portale.
-    Il portale usa link con testo 'Login' o 'Accedi'.
+    Usa JavaScript click per bypassare elementi nascosti o sovrapposti.
     """
-    wait = WebDriverWait(driver, WAIT_TIMEOUT)
+    # 1. Prova prima a cercare link che contengono "idp.polito.it" o hanno testo "Login" o "Accedi"
+    try:
+        # Cerca prima link con href all'IDP
+        links = driver.find_elements(By.XPATH, "//a[contains(@href, 'idp.polito.it')]")
+        if not links:
+            # Fallback a testo "Login" o "Accedi" (case-insensitive)
+            links = driver.find_elements(By.XPATH, "//a[contains(translate(text(), 'ACEDI', 'acedi'), 'login') or contains(translate(text(), 'ACEDI', 'acedi'), 'accedi')]")
+        
+        if links:
+            # Clicchiamo sul primo link trovato tramite JS per essere sicuri che funzioni anche se nascosto/coperto
+            login_link = links[0]
+            log_info("Clicco sul link di login tramite JavaScript...")
+            driver.execute_script("arguments[0].click();", login_link)
+            return
+    except Exception as e:
+        log_warn(f"Errore durante la ricerca/click del login link: {e}")
 
-    # Prova prima il link diretto all'IDP
+    # 2. Se non riusciamo, proviamo il vecchio metodo standard come fallback
+    wait = WebDriverWait(driver, WAIT_TIMEOUT)
     try:
         login_link = wait.until(
             EC.element_to_be_clickable((By.LINK_TEXT, "Login"))
         )
         login_link.click()
         return
-    except TimeoutException:
-        pass
-
-    # Prova con partial link text
-    try:
-        login_link = driver.find_element(By.PARTIAL_LINK_TEXT, "Login")
-        login_link.click()
-        return
-    except NoSuchElementException:
-        pass
-
-    # Prova href che punta all'IDP
-    try:
-        links = driver.find_elements(By.CSS_SELECTOR, f"a[href*='{IDP_DOMAIN}']")
-        if links:
-            links[0].click()
-            return
     except Exception:
         pass
 
-    # Naviga direttamente alla pagina di login dell'IDP come fallback
+    # 3. Fallback estremo
     log_warn("Pulsante Login non trovato, navigo direttamente all'IDP...")
     driver.get(LOGIN_URL)
 
