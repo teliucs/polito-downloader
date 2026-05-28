@@ -64,7 +64,7 @@ Puoi personalizzare l'esecuzione passando argomenti da riga di comando:
 
 ---
 
-## 📁 Struttura Directory Generata
+## 📁 Struttura File
 
 I materiali vengono scaricati ed estratti all'interno della cartella `downloads/` ricreando l'albero esatto del Portale:
 
