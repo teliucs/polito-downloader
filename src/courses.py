@@ -91,6 +91,18 @@ def _extract_courses(driver) -> list:
     nel browser, evitando rallentamenti o hang dovuti a roundtrip Selenium.
     Supporta il recupero di chiama_materia con estrazione testo dal parent container.
     """
+    try:
+        log_info("--- DIAGNOSTICA CARD CORSO ---")
+        elem = driver.find_element(By.XPATH, "//*[contains(text(), 'Accounting and Corporate')]")
+        log_info(f"Trovato elemento testo: <{elem.tag_name}> '{elem.text}'")
+        
+        parent = elem
+        for depth in range(1, 5):
+            parent = parent.find_element(By.XPATH, "..")
+            log_info(f"Genitore Livello {depth}: <{parent.tag_name}> class='{parent.get_attribute('class')}' id='{parent.get_attribute('id')}' outerHTML={parent.get_attribute('outerHTML')[:600]}...")
+    except Exception as e:
+        log_warn(f"Errore diagnostica card: {e}")
+
     js_code = """
     const links = document.getElementsByTagName('a');
     const courses = [];
