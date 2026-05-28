@@ -1,14 +1,10 @@
 # ============================================================
 #  config.yaml.example — Copia questo file in config.yaml
-#  e inserisci le tue credenziali PoliTo
-#  ⚠️  NON committare mai config.yaml su Git!
+#  per personalizzare le impostazioni di download.
+#
+#  Le credenziali (matricola e password) NON vanno qui:
+#  lo script le chiede direttamente nel terminale ogni volta.
 # ============================================================
-
-polito:
-  # La tua matricola (es. s123456) o username Polito
-  username: "s123456"
-  # La tua password del portale didattica
-  password: "la_tua_password"
 
 download:
   # Cartella dove verranno salvati i materiali

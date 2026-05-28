@@ -18,6 +18,7 @@ Per iniziare:
 import sys
 import os
 import argparse
+import getpass
 import yaml
 from colorama import init, Fore, Style
 
@@ -54,10 +55,6 @@ BANNER = f"""
 # ─────────────────────────────────────────────────────────────
 
 DEFAULT_CONFIG = {
-    "polito": {
-        "username": "",
-        "password": "",
-    },
     "download": {
         "output_folder": "./downloads",
         "headless": True,
@@ -69,30 +66,41 @@ DEFAULT_CONFIG = {
 
 
 def load_config(config_path: str) -> dict:
-    """Carica e valida il file di configurazione YAML."""
-    if not os.path.isfile(config_path):
-        log_error(f"File di configurazione non trovato: {config_path}")
-        log_warn("Copia config.yaml.example → config.yaml e inserisci le tue credenziali.")
-        sys.exit(1)
+    """
+    Carica il file di configurazione YAML.
+    Il file e' opzionale: se non esiste vengono usati i valori di default.
+    NON contiene le credenziali (chieste interattivamente a runtime).
+    """
+    merged = {"download": DEFAULT_CONFIG["download"].copy()}
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        config = yaml.safe_load(f)
-
-    # Merge con default (per campi mancanti)
-    merged = DEFAULT_CONFIG.copy()
-    if config:
-        if "polito" in config:
-            merged["polito"].update(config["polito"])
-        if "download" in config:
+    if os.path.isfile(config_path):
+        with open(config_path, "r", encoding="utf-8") as f:
+            config = yaml.safe_load(f)
+        if config and "download" in config:
             merged["download"].update(config["download"])
-
-    # Validazione
-    if not merged["polito"]["username"] or not merged["polito"]["password"]:
-        log_error("Username o password mancanti in config.yaml!")
-        log_warn("Modifica config.yaml e inserisci le tue credenziali PoliTo.")
-        sys.exit(1)
+    else:
+        log_warn(f"config.yaml non trovato, uso impostazioni di default.")
+        log_warn("Copia config.yaml.example -> config.yaml per personalizzare le impostazioni.")
 
     return merged
+
+
+def ask_credentials() -> tuple:
+    """
+    Chiede interattivamente matricola e password all'utente.
+    La password viene mascherata (non appare nel terminale).
+    """
+    print(f"\n{Fore.CYAN}--- Credenziali PoliTo ---{Style.RESET_ALL}")
+    username = input(f"  Matricola (es. s123456): ").strip()
+    if not username:
+        log_error("Matricola non inserita.")
+        sys.exit(1)
+    password = getpass.getpass(f"  Password:               ")
+    if not password:
+        log_error("Password non inserita.")
+        sys.exit(1)
+    print()
+    return username, password
 
 
 # ─────────────────────────────────────────────────────────────
@@ -146,7 +154,7 @@ def main():
     # Parsing argomenti
     args = parse_args()
 
-    # Carica configurazione
+    # Carica configurazione (impostazioni, NON credenziali)
     config = load_config(args.config)
 
     # Override da argomenti CLI
@@ -155,9 +163,10 @@ def main():
     if args.course:
         config["download"]["courses"] = [args.course]
 
+    # Chiedi credenziali in modo interattivo
+    username, password = ask_credentials()
+
     # Impostazioni
-    username      = config["polito"]["username"]
-    password      = config["polito"]["password"]
     output_folder = config["download"]["output_folder"]
     headless      = config["download"]["headless"]
     browser_name  = config["download"].get("browser", "firefox")

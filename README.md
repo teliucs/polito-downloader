@@ -31,7 +31,7 @@
 ### 1. Clona il repository
 
 ```bash
-git clone https://github.com/TUO_USERNAME/PoliTo-downloader.git
+git clone https://github.com/lorenzo-tegliucci/PoliTo-downloader.git
 cd PoliTo-downloader
 ```
 
@@ -41,9 +41,9 @@ cd PoliTo-downloader
 pip install -r requirements.txt
 ```
 
-### 3. Configura le tue credenziali
+### 3. (Opzionale) Personalizza le impostazioni
 
-Copia il file di configurazione di esempio e modifica le credenziali:
+Copia il file di configurazione di esempio e modificalo a piacere:
 
 ```bash
 # Su Linux/macOS
@@ -53,13 +53,10 @@ cp config.yaml.example config.yaml
 copy config.yaml.example config.yaml
 ```
 
-Apri `config.yaml` con un editor di testo e inserisci:
+Il `config.yaml` contiene **solo le impostazioni di download** (cartella, browser, ecc.).
+**Le credenziali vengono chieste direttamente nel terminale ogni volta che esegui lo script** — non vengono mai salvate su disco.
 
 ```yaml
-polito:
-  username: "s123456"       # La tua matricola
-  password: "tuapassword"   # La tua password
-
 download:
   output_folder: "./downloads"
   headless: true            # true = browser invisibile
@@ -67,8 +64,6 @@ download:
   courses: []               # [] = tutti i corsi
   skip_existing: true
 ```
-
-> ⚠️ **Importante**: non committare mai `config.yaml` su Git! È già nel `.gitignore`.
 
 ---
 
@@ -78,6 +73,13 @@ download:
 
 ```bash
 python polito_downloader.py
+```
+
+Lo script chiederà nel terminale:
+```
+--- Credenziali PoliTo ---
+  Matricola (es. s123456): s123456
+  Password:               (nascosta mentre scrivi)
 ```
 
 ### Mostra solo la lista dei corsi (senza scaricare)
@@ -128,10 +130,10 @@ downloads/
 
 ## 🔧 Opzioni di configurazione
 
+Il `config.yaml` è **opzionale** e contiene solo le preferenze di download, non le credenziali.
+
 | Opzione | Descrizione | Default |
-|---------|-------------|---------|
-| `polito.username` | Matricola PoliTo (es. `s123456`) | — |
-| `polito.password` | Password del portale | — |
+|---------|-------------|------|
 | `download.output_folder` | Cartella dove salvare i file | `./downloads` |
 | `download.headless` | Browser invisibile (`true`/`false`) | `true` |
 | `download.browser` | Browser da usare (`firefox`/`chrome`) | `firefox` |
@@ -142,7 +144,9 @@ downloads/
 
 ## 🔐 Nota sulla sicurezza
 
-- Le credenziali vengono salvate **solo** in `config.yaml` (locale, non caricato su Git)
+- Le credenziali vengono chieste **interattivamente nel terminale** ad ogni esecuzione
+- La password è **mascherata** mentre la digiti (non appare sullo schermo)
+- Le credenziali **non vengono mai salvate su disco** né nel `config.yaml`
 - Lo script **non invia** le tue credenziali ad alcun server terzo
 - Lo script simula un normale utente che naviga nel portale
 
