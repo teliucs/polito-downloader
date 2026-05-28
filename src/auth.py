@@ -87,7 +87,12 @@ def login(driver, username: str, password: str) -> bool:
             log_ok("Login effettuato con successo!")
             return True
         else:
-            log_error("Login fallito. Controlla username e password in config.yaml")
+            err_msg = _get_login_error_message(driver)
+            if err_msg:
+                log_error(f"Login fallito: {err_msg}")
+            else:
+                log_error("Login fallito. Controlla matricola e password.")
+            log_warn("Consiglio: prova ad eseguire con '--no-headless' per vedere la finestra del browser e capire cosa succede.")
             return False
 
     except TimeoutException:
@@ -218,3 +223,27 @@ def _login_successful(driver) -> bool:
 
     # In ogni caso, se non siamo sull'IDP, probabilmente il login è ok
     return IDP_DOMAIN not in current_url
+
+
+def _get_login_error_message(driver) -> str:
+    """
+    Estrae il messaggio di errore visibile se presente nella pagina di login dell'IDP.
+    """
+    try:
+        # Cerca elementi con classe output--error, output-message, error, alert
+        error_selectors = [
+            ".output--error",
+            ".output-message",
+            ".error",
+            ".alert-danger",
+            "[class*='error']",
+            "[class*='alert']"
+        ]
+        for sel in error_selectors:
+            elements = driver.find_elements(By.CSS_SELECTOR, sel)
+            for el in elements:
+                if el.is_displayed() and el.text.strip():
+                    return el.text.strip()
+    except Exception:
+        pass
+    return None
