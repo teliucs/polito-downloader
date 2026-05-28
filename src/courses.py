@@ -51,6 +51,16 @@ def get_courses(driver, filter_list: list = None) -> list:
         log_error("Sessione scaduta o login non riuscito. Riprova.")
         return []
 
+    # Attende che gli elementi dei corsi siano renderizzati nella Single Page App
+    log_info("Attesa del caricamento grafico dei corsi...")
+    try:
+        WebDriverWait(driver, 15).until(
+            lambda d: len(d.find_elements(By.XPATH, "//a[contains(@onclick, 'chiama_materia')]")) > 0
+        )
+        time.sleep(2)  # Diamo un piccolo tempo per completare la renderizzazione di tutte le card
+    except TimeoutException:
+        log_warn("Timeout attendendo il caricamento grafico dei corsi. Procedo comunque.")
+
     courses = _extract_courses(driver)
 
     if not courses:
