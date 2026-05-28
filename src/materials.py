@@ -145,7 +145,7 @@ def _process_page(driver, current_folder: str, skip_existing: bool, cookies: dic
     
     # DIAGNOSTICA MATERIALI
     log_info(f"Processo pagina materiali. URL: {driver.current_url}")
-    log_info(f"Trovati {len(links)} link totali.")
+    log_info(f"Trovati {len(links)} link totali nel documento principale.")
     count = 0
     for l in links:
         try:
@@ -154,10 +154,21 @@ def _process_page(driver, current_folder: str, skip_existing: bool, cookies: dic
             if text or href:
                 log_info(f"  Link {count}: text='{text}' | href='{href}'")
                 count += 1
-                if count >= 35:
+                if count >= 100:
                     break
         except Exception:
             pass
+
+    # Controlliamo se ci sono iframe (il portale didattica incorpora spesso i materiali in iframe)
+    try:
+        iframes = driver.find_elements(By.TAG_NAME, "iframe")
+        log_info(f"Trovati {len(iframes)} iframe sulla pagina.")
+        for idx, iframe in enumerate(iframes):
+            iframe_id = iframe.get_attribute("id")
+            iframe_src = iframe.get_attribute("src")
+            log_info(f"  Iframe {idx}: id='{iframe_id}' | src='{iframe_src}'")
+    except Exception as e:
+        log_error(f"Errore controllo iframe: {e}")
 
     file_links = []
     folder_links = []
