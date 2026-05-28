@@ -45,17 +45,15 @@ def login(driver, username: str, password: str) -> bool:
         False in caso di errore
     """
     try:
-        log_info("Navigazione al Portale della Didattica...")
+        log_info("Autenticazione in corso...")
         driver.get("https://didattica.polito.it/")
         time.sleep(2)
 
         # ── Step 1: click sul pulsante Login / Accedi ─────────────────
-        log_info("Click su 'Login'...")
         _click_login_button(driver)
         time.sleep(2)
 
         # ── Step 2: siamo su idp.polito.it, compiliamo il form ────────
-        log_info("Inserimento credenziali...")
         wait = WebDriverWait(driver, WAIT_TIMEOUT)
 
         # Campo username
@@ -86,7 +84,6 @@ def login(driver, username: str, password: str) -> bool:
             time.sleep(3)
 
         # ── Step 4: attesa del completamento dell'autenticazione (redirect) ──
-        log_info("Attesa del completamento del login...")
         try:
             WebDriverWait(driver, 15).until(
                 lambda d: IDP_DOMAIN not in d.current_url.lower()
@@ -133,7 +130,6 @@ def _click_login_button(driver):
         if links:
             # Clicchiamo sul primo link trovato tramite JS per essere sicuri che funzioni anche se nascosto/coperto
             login_link = links[0]
-            log_info("Clicco sul link di login tramite JavaScript...")
             driver.execute_script("arguments[0].click();", login_link)
             return
     except Exception as e:
@@ -160,11 +156,14 @@ def _is_otp_required(driver) -> bool:
     Controlla se la pagina corrente richiede un codice OTP.
     Cerca campi input per OTP o messaggi tipici della 2FA.
     """
+    # Se non siamo più sull'IDP, il login è andato a buon fine e non serve la 2FA
+    if "idp.polito.it" not in driver.current_url.lower():
+        return False
+
     page_source = driver.page_source.lower()
 
     otp_indicators = [
         "one-time password",
-        "otp",
         "codice di verifica",
         "second factor",
         "authentication code",
@@ -176,6 +175,11 @@ def _is_otp_required(driver) -> bool:
     for indicator in otp_indicators:
         if indicator in page_source:
             return True
+
+    # Cerca la parola "otp" come parola intera per evitare falsi positivi (es. "prototypes" contiene "otp")
+    import re
+    if re.search(r"\botp\b", page_source):
+        return True
 
     # Controlla la presenza di un campo OTP
     try:
@@ -272,10 +276,7 @@ def _handle_mfa_setup_prompt(driver) -> bool:
         time.sleep(1)
         page_source = driver.page_source.lower()
         if "mfa management" in page_source or "multifactor authentication method" in page_source:
-            log_info("Rilevata pagina 'MFA Management'. Provo a cliccare su 'Skip'...")
-            
             # Cerca il pulsante "Skip"
-            # 1. Tramite testo (case-insensitive o parziale)
             skip_buttons = driver.find_elements(
                 By.XPATH, 
                 "//button[contains(text(), 'Skip') or contains(translate(text(), 'SKP', 'skp'), 'skip')] | "
@@ -287,7 +288,6 @@ def _handle_mfa_setup_prompt(driver) -> bool:
                 for btn in skip_buttons:
                     if btn.is_displayed():
                         driver.execute_script("arguments[0].click();", btn)
-                        log_ok("Cliccato su 'Skip' tramite JavaScript.")
                         time.sleep(4)
                         return True
             
@@ -302,7 +302,6 @@ def _handle_mfa_setup_prompt(driver) -> bool:
                 for el in elements:
                     if el.is_displayed():
                         driver.execute_script("arguments[0].click();", el)
-                        log_ok(f"Cliccato su fallback skip ({sel}) tramite JavaScript.")
                         time.sleep(4)
                         return True
                         

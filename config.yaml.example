@@ -8,5 +8,5 @@
 # ====================================================================
 
 credentials:
-  username: "s359563"             # Sostituisci con la tua matricola (es. s123456)
+  username: "s123456"             # Sostituisci con la tua matricola
   password: "LaTuaPasswordQui"    # Sostituisci con la tua password del portale in chiaro

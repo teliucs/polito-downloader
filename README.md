@@ -1,6 +1,6 @@
 # 🎓 PoliTo Material Downloader
 
-> Scarica automaticamente tutti i materiali dei tuoi corsi dal Portale della Didattica del Politecnico di Torino.
+> Scarica automaticamente tutti i materiali dei tuoi corsi dal Portale della Didattica del Politecnico di Torino direttamente sul tuo PC, mantenendo le cartelle organizzate.
 
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -10,179 +10,141 @@
 
 ## ✨ Funzionalità
 
-- 🔐 **Login automatico** via SSO del Politecnico (supporta anche la 2FA)
-- 📚 **Tutti i corsi** — scarica i materiali di uno o più corsi (o tutti in una volta)
-- 📁 **Struttura originale** — mantiene la struttura a cartelle del portale
-- ⏭️ **Skip intelligente** — salta i file già scaricati (solo i nuovi)
-- 🖥️ **Browser invisibile** — funziona in background, senza aprire finestre
-- 🔄 **Multi-browser** — supporta Firefox e Chrome
+- 🔐 **Login automatico** via SSO del Politecnico (gestisce automaticamente MFA/Skip Setup)
+- 📚 **Tutti i corsi o download selettivo** — scegli tu quali corsi scaricare tramite un comodo menu nel terminale
+- 📁 **Organizzazione intelligente** — ricrea fedelmente la struttura a cartelle del portale (lezioni, esercizi, slide) sul tuo PC
+- ⏭️ **Skip intelligente (Zero sprechi)** — rileva e salta i file che hai già scaricato, scaricando solo i nuovi materiali o aggiornamenti
+- ⚡ **Velocità super** — scarica interi corsi in un singolo pacchetto ZIP protetto ed estrae tutto all'istante
+- 🖥️ **Lavoro silenzioso (Headless)** — funziona in background senza aprire finestre (puoi attivare la finestra per debug con `--no-headless`)
 
 ---
 
-## 📋 Requisiti
+## 📋 Requisiti per iniziare
 
-- **Python 3.8+**
-- **Firefox** (consigliato) oppure **Chrome**
+Per far funzionare lo script hai bisogno di solo due cose sul tuo PC:
+1. **Python** (il linguaggio di programmazione con cui è scritto lo script)
+2. **Firefox** (il browser consigliato che lo script userà in background per scaricare i file)
 
 ---
 
-## 🚀 Installazione
+## 🚀 Guida all'Installazione per principianti
 
-### 1. Clona il repository
+Se non hai mai usato il terminale o non sai nulla di informatica, segui questi semplici passaggi passo-passo:
 
-```bash
-git clone https://github.com/lorenzo-tegliucci/PoliTo-downloader.git
-cd PoliTo-downloader
-```
+### 1. Installa Python sul tuo PC
+* **Su Windows:** Apri il **Microsoft Store**, cerca **"Python"** e installa l'ultima versione disponibile (es. Python 3.11 o 3.12). È un'installazione con un solo click ed è completamente sicura.
+* **Su macOS:** Python è spesso già presente. Se necessario, scaricalo e installalo dal [sito ufficiale Python](https://www.python.org/downloads/mac-osx/).
 
-### 2. Installa le dipendenze Python
+### 2. Scarica questo progetto sul tuo PC
+Fai click sul pulsante verde in alto a destra **"Code"** su GitHub e seleziona **"Download ZIP"**. Estrai la cartella ZIP dove preferisci (es. sul Desktop o nei Documenti).
+
+### 3. Apri il terminale nella cartella del progetto
+* **Su Windows:** Apri la cartella che hai estratto, fai click sulla barra degli indirizzi in alto (dove c'è scritto il percorso della cartella), digita **`cmd`** e premi **INVIO**. Si aprirà il terminale di Windows posizionato nella cartella corretta.
+* **Su macOS/Linux:** Apri l'app **Terminale**, scrivi `cd ` (con uno spazio dopo) e trascina la cartella del progetto all'interno della finestra del terminale, quindi premi **INVIO**.
+
+### 4. Installa le dipendenze dello script
+Nel terminale che hai appena aperto, incolla questo comando e premi **INVIO**:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. (Opzionale) Personalizza le impostazioni
+---
 
-Copia il file di configurazione di esempio e modificalo a piacere:
+## 🔐 Configurazione (Come inserire le tue credenziali in sicurezza)
 
-```bash
-# Su Linux/macOS
-cp config.yaml.example config.yaml
+Per evitare di scrivere la tua matricola e password ogni volta che avvii lo script, puoi salvarle in sicurezza sul tuo PC in un file di configurazione locale:
 
-# Su Windows
-copy config.yaml.example config.yaml
-```
-
-Il `config.yaml` contiene **solo le impostazioni di download** (cartella, browser, ecc.).
-**Le credenziali vengono chieste direttamente nel terminale ogni volta che esegui lo script** — non vengono mai salvate su disco.
+1. Trova il file **`config.yaml.example`** all'interno della cartella.
+2. Rinominalo in **`config.yaml`** (rimuovendo `.example` alla fine).
+3. Apri il file con un qualsiasi editor di testo (es. Blocco Note o TextEdit) e inserisci i tuoi dati:
 
 ```yaml
-download:
-  output_folder: "./downloads"
-  headless: true            # true = browser invisibile
-  browser: "firefox"        # "firefox" o "chrome"
-  courses: []               # [] = tutti i corsi
-  skip_existing: true
+credentials:
+  username: "s123456"             # Sostituisci s123456 con la tua matricola
+  password: "LaTuaPasswordQui"    # Inserisci la tua password del portale
 ```
+
+> [!IMPORTANT]
+> **La sicurezza prima di tutto!** 
+> Il file `config.yaml` è stato inserito all'interno del file di controllo `.gitignore`. Questo significa che **le tue credenziali rimarranno sul tuo PC** e non verranno **MAI** caricate su GitHub o condivise online. Lo script effettua la connessione direttamente ed esclusivamente con i server ufficiali del Politecnico di Torino (`didattica.polito.it` e `idp.polito.it`).
+
+*Se preferisci non salvare la password su disco, lascia i campi vuoti: lo script ti chiederà la matricola e la password in chiaro nel terminale ogni volta che lo avvierai.*
 
 ---
 
-## ▶️ Utilizzo
+## ▶️ Come utilizzare lo script
 
-### Scarica tutti i materiali
+Apri il terminale nella cartella del progetto e scrivi:
 
 ```bash
 python polito_downloader.py
 ```
 
-Lo script chiederà nel terminale:
-```
---- Credenziali PoliTo ---
-  Matricola (es. s123456): s123456
-  Password:               (nascosta mentre scrivi)
-```
+### Cosa succederà ora?
+1. Lo script caricherà le tue credenziali e si collegherà in background.
+2. Ti mostrerà la lista di tutti i corsi a cui sei iscritto quest'anno.
+3. Ti chiederà di inserire i numeri dei corsi che desideri scaricare:
+   ```text
+   ➜ Inserisci i numeri dei corsi da scaricare separati da virgola (es. 1,3 o 0 per tutti): 3
+   ```
+4. Lo script scaricherà tutti i materiali organizzandoli automaticamente per te!
 
-### Mostra solo la lista dei corsi (senza scaricare)
+---
 
+## 💡 Comandi utili e avanzati
+
+Se vuoi personalizzare l'esecuzione, puoi aggiungere delle opzioni al comando di avvio:
+
+### Mostra solo la lista dei corsi (senza scaricare nulla)
 ```bash
 python polito_downloader.py --list-courses
 ```
 
-### Scarica solo un corso specifico
-
+### Scarica solo un corso specifico (senza mostrare il menu di selezione)
 ```bash
-python polito_downloader.py --course "Analisi Matematica"
+python polito_downloader.py --course "Strategy and Organization"
 ```
 
-### Apri il browser in modo visibile (utile per debug)
-
+### Rendi visibile il browser (utile per debug o se riscontri problemi)
 ```bash
 python polito_downloader.py --no-headless
 ```
 
-### Usa un file di configurazione diverso
-
-```bash
-python polito_downloader.py --config mio_config.yaml
-```
-
 ---
 
-## 📁 Struttura dell'output
+## 📁 Struttura dei materiali salvati
 
-I file vengono organizzati in cartelle:
+I materiali verranno salvati in una cartella chiamata **`downloads/`** creata all'interno del progetto, organizzata in questo modo:
 
 ```
 downloads/
-├── Analisi Matematica II/
-│   ├── Lezioni/
-│   │   ├── Lezione_01.pdf
-│   │   └── Lezione_02.pdf
-│   └── Esercizi/
-│       └── Esercizi_cap1.pdf
-├── Fisica I/
-│   ├── Slide_Meccanica.pptx
-│   └── Formulario.pdf
+├── Strategy and Organization/
+│   ├── Syllabus 2025-26.docx
+│   ├── Business Game/
+│   │   ├── 1 Introduction CVC.pdf
+│   │   └── Team Logbook.docx
+│   └── case studies/
+│       ├── C3. Airline sector.pdf
+│       └── C5. IKEA Case Notes.pdf
 └── ...
 ```
 
 ---
 
-## 🔧 Opzioni di configurazione
+## ❓ Risoluzione dei problemi comuni
 
-Il `config.yaml` è **opzionale** e contiene solo le preferenze di download, non le credenziali.
+### 1. Ricevo un errore che dice "Python non trovato"
+Assicurati di aver installato Python dal Microsoft Store (Windows) e di aver riavviato il terminale prima di eseguire lo script.
 
-| Opzione | Descrizione | Default |
-|---------|-------------|------|
-| `download.output_folder` | Cartella dove salvare i file | `./downloads` |
-| `download.headless` | Browser invisibile (`true`/`false`) | `true` |
-| `download.browser` | Browser da usare (`firefox`/`chrome`) | `firefox` |
-| `download.courses` | Lista corsi da scaricare (vuota = tutti) | `[]` |
-| `download.skip_existing` | Salta file già scaricati | `true` |
+### 2. Ricevo un errore relativo al Driver del Browser (Geckodriver)
+Lo script scarica e configura automaticamente i driver necessari. Assicurati solo di avere **Firefox** installato sul computer. Se preferisci Chrome, puoi installare Chrome sul PC.
 
 ---
 
-## 🔐 Nota sulla sicurezza
+## 📄 Licenza & Note legali
 
-- Le credenziali vengono chieste **interattivamente nel terminale** ad ogni esecuzione
-- La password è **mascherata** mentre la digiti (non appare sullo schermo)
-- Le credenziali **non vengono mai salvate su disco** né nel `config.yaml`
-- Lo script **non invia** le tue credenziali ad alcun server terzo
-- Lo script simula un normale utente che naviga nel portale
+Questo progetto è rilasciato sotto licenza MIT. 
 
----
-
-## ❓ Problemi comuni
-
-### Il driver del browser non viene trovato
-Lo script installa automaticamente il driver via `webdriver-manager`. Assicurati di avere Firefox (o Chrome) installato.
-
-```bash
-# Se hai problemi, installa manualmente geckodriver (Firefox):
-# https://github.com/mozilla/geckodriver/releases
-```
-
-### Il login fallisce
-- Verifica username e password in `config.yaml`
-- Prova con `--no-headless` per vedere cosa succede nel browser
-- Se hai la 2FA attiva, lo script ti chiederà il codice OTP in console
-
-### Nessun corso trovato
-Il portale didattica cambia struttura di tanto in tanto. Apri una [Issue](https://github.com/TUO_USERNAME/PoliTo-downloader/issues) con il messaggio di errore.
-
----
-
-## 🤝 Contribuire
-
-Pull request benvenute! Se il portale cambia struttura e lo script smette di funzionare, apri una Issue o una PR.
-
----
-
-## 📄 Licenza
-
-MIT — vedi [LICENSE](LICENSE)
-
----
-
-> **Nota**: questo è un progetto non ufficiale, non affiliato con il Politecnico di Torino.
-> Usalo responsabilmente e nel rispetto del regolamento dell'ateneo.
+> [!NOTE]
+> Questo è un progetto **non ufficiale** sviluppato in modo indipendente e non è affiliato o sponsorizzato dal Politecnico di Torino. Usalo responsabilmente e nel rispetto del regolamento d'ateneo.

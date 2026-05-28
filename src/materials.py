@@ -15,6 +15,7 @@ con link per scaricare i file direttamente.
 import os
 import time
 import requests
+import zipfile
 from urllib.parse import urljoin, urlparse
 
 from selenium.webdriver.common.by import By
@@ -72,22 +73,16 @@ def download_course_materials(
     course_folder = os.path.join(output_folder, course_name)
     ensure_dir(course_folder)
 
-    log_info(f"Elaborazione corso: {course['name']}")
-    log_info(f"Cartella destinazione: {course_folder}")
-
     # Naviga alla pagina del corso
     driver.get(course["url"])
-    time.sleep(2)
+    time.sleep(4)
 
     # Trova la pagina dei materiali (potrebbe richiedere un click aggiuntivo)
     _navigate_to_materials(driver)
     time.sleep(2)
 
-    # Recupera i cookie di sessione per usarli nei download diretti
-    session_cookies = {c["name"]: c["value"] for c in driver.get_cookies()}
-
-    # Avvia la navigazione ricorsiva
-    _process_page(driver, course_folder, skip_existing, session_cookies, depth=0)
+    # Avvia l'elaborazione dei materiali tramite l'iframe del File Manager
+    _process_iframe_materials(driver, course_folder, skip_existing, output_folder)
 
     log_ok(f"Corso '{course['name']}' completato.")
 
@@ -110,21 +105,227 @@ def _navigate_to_materials(driver):
 
             # Controlla il testo del link
             if any(kw in text for kw in material_keywords):
-                log_info(f"Trovata sezione materiali: '{link.text.strip()}'")
                 driver.get(href)
                 return
 
             # Controlla l'URL del link
             if any(kw in href.lower() for kw in material_keywords):
-                log_info(f"Trovato link materiali: {href}")
                 driver.get(href)
                 return
 
     except Exception as e:
         log_warn(f"Navigazione materiali: {e}")
 
-    # Se non troviamo un link specifico, lavoriamo sulla pagina corrente
-    log_info("Lavorando sulla pagina corrente del corso.")
+    pass
+
+
+def _process_iframe_materials(driver, course_folder: str, skip_existing: bool, output_folder: str) -> bool:
+    """
+    Gestisce l'iframe dei materiali (DevExtreme File Manager):
+    - Trova l'iframe
+    - Si sposta nel suo contesto
+    - Seleziona tutto ("SELEZIONA TUTTO")
+    - Clicca su "Download"
+    - Attende il completamento del download del file ZIP
+    - Estrae il file ZIP nella cartella locale del corso
+    - Pulisce i file temporanei
+    """
+    try:
+        # Cerca l'iframe del file manager
+        iframe_elements = driver.find_elements(By.TAG_NAME, "iframe")
+        target_iframe = None
+        for iframe in iframe_elements:
+            src = iframe.get_attribute("src") or ""
+            if "file_manager" in src:
+                target_iframe = iframe
+                break
+        
+        if not target_iframe:
+            log_warn("File Manager dei materiali non trovato su questa pagina.")
+            return False
+
+        driver.switch_to.frame(target_iframe)
+        
+        # Attende che il file manager sia caricato ed elementi renderizzati
+        try:
+            # Attende che gli elementi del file manager siano renderizzati (fino a 10s)
+            WebDriverWait(driver, 10).until(
+                lambda d: len(d.find_elements(By.CLASS_NAME, "dx-filemanager-thumbnails-item")) > 0
+            )
+            time.sleep(1) # Piccolo assestamento finale
+        except TimeoutException:
+            time.sleep(3)
+
+        # Controlla se ci sono elementi da scaricare
+        items = driver.find_elements(By.CLASS_NAME, "dx-filemanager-thumbnails-item")
+        if not items:
+            log_info("Nessun materiale disponibile per questo corso.")
+            driver.switch_to.default_content()
+            return True
+
+        # Cerca il pulsante "SELEZIONA TUTTO"
+        select_all_btn = None
+        try:
+            select_all_btn = driver.find_element(
+                By.XPATH, 
+                "//div[contains(text(), 'SELEZIONA TUTTO') or contains(text(), 'Seleziona tutto') or @aria-label='Seleziona tutto' or @aria-label='Select all']"
+            )
+        except Exception:
+            # Fallback: cerca tra tutti i bottoni DevExtreme
+            buttons = driver.find_elements(By.CLASS_NAME, "dx-button")
+            for btn in buttons:
+                text = btn.text.strip().lower()
+                val = (btn.get_attribute("aria-label") or "").lower()
+                if "seleziona tutto" in text or "select all" in text or "seleziona tutto" in val or "select all" in val:
+                    select_all_btn = btn
+                    break
+
+        if not select_all_btn:
+            log_error("Impossibile selezionare i materiali.")
+            driver.switch_to.default_content()
+            return False
+
+        driver.execute_script("arguments[0].click();", select_all_btn)
+        time.sleep(2)
+
+        # Cerca il pulsante di Download
+        download_btn = None
+        try:
+            download_btn = driver.find_element(
+                By.XPATH,
+                "//div[@aria-label='Download' or @aria-label='Scarica' or contains(@class, 'dx-icon-download')]"
+            )
+        except Exception:
+            # Fallback
+            buttons = driver.find_elements(By.CLASS_NAME, "dx-button")
+            for btn in buttons:
+                val = (btn.get_attribute("aria-label") or "").lower()
+                if "download" in val or "scarica" in val:
+                    download_btn = btn
+                    break
+
+        if not download_btn:
+            log_error("Impossibile avviare il download.")
+            driver.switch_to.default_content()
+            return False
+
+        log_info("Generazione e download dell'archivio materiali (ZIP)...")
+        # Prepara e pulisce la cartella temporanea
+        tmp_dl_dir = os.path.join(output_folder, "_tmp_browser_dl")
+        os.makedirs(tmp_dl_dir, exist_ok=True)
+        for f in os.listdir(tmp_dl_dir):
+            try:
+                os.remove(os.path.join(tmp_dl_dir, f))
+            except Exception:
+                pass
+
+        driver.execute_script("arguments[0].click();", download_btn)
+
+        # Attende il completamento del download
+        zip_file_path = _wait_for_zip_download(tmp_dl_dir, timeout=90)
+        
+        if not zip_file_path:
+            log_error("Errore o timeout durante il download del pacchetto ZIP dal portale.")
+            driver.switch_to.default_content()
+            return False
+
+        log_ok("Pacchetto materiali scaricato con successo.")
+        
+        # Estrae e logga i file tracciando statistiche
+        _extract_and_log_zip(zip_file_path, course_folder, skip_existing)
+
+        # Rimuove il file zip temporaneo
+        try:
+            os.remove(zip_file_path)
+        except Exception as e:
+            log_warn(f"Impossibile rimuovere il file temporaneo {zip_file_path}: {e}")
+
+        # Torna al frame principale
+        driver.switch_to.default_content()
+        return True
+
+    except Exception as e:
+        log_error(f"Errore durante l'elaborazione dell'iframe del File Manager: {e}")
+        try:
+            driver.switch_to.default_content()
+        except Exception:
+            pass
+        return False
+
+
+def _wait_for_zip_download(directory: str, timeout: int = 90) -> str:
+    """
+    Attende che nella directory indicata compaia un file ZIP completo e non temporaneo.
+    Ritorna il path assoluto del file ZIP, o None in caso di timeout.
+    """
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        files = os.listdir(directory)
+        
+        # Controlla file temporanei Firefox o Chrome in corso
+        temp_exists = any(
+            f.endswith(".part") or f.endswith(".crdownload") or f.startswith(".lk")
+            for f in files
+        )
+        if temp_exists:
+            time.sleep(1)
+            continue
+            
+        zip_files = [f for f in files if f.endswith(".zip")]
+        if zip_files:
+            file_path = os.path.join(directory, zip_files[0])
+            try:
+                size_1 = os.path.getsize(file_path)
+                time.sleep(1.5)
+                size_2 = os.path.getsize(file_path)
+                if size_1 == size_2 and size_1 > 0:
+                    return file_path
+            except Exception:
+                pass
+                
+        time.sleep(1)
+    return None
+
+
+def _extract_and_log_zip(zip_path: str, target_folder: str, skip_existing: bool):
+    """
+    Estrae i file dallo ZIP tracciando i progressi, saltando i già presenti
+    se richiesto e aggiornando le statistiche globali dei download.
+    """
+    global stats
+    try:
+        with zipfile.ZipFile(zip_path, "r") as z:
+            # Filtra solo i file effettivi (esclude le cartelle vuote)
+            members = [m for m in z.infolist() if not m.is_dir()]
+            
+            log_info(f"Estrazione ed analisi di {len(members)} file...")
+            
+            for member in members:
+                filename = member.filename
+                dest_path = os.path.join(target_folder, filename)
+                dest_dir = os.path.dirname(dest_path)
+                ensure_dir(dest_dir)
+                
+                # Controlla se saltare
+                if skip_existing and file_exists(dest_path):
+                    stats["skipped"] += 1
+                    continue
+                    
+                # Estrae
+                try:
+                    z.extract(member, target_folder)
+                    
+                    size = member.file_size
+                    stats["downloaded"] += 1
+                    stats["total_bytes"] += size
+                    log_ok(f"✓  {filename} ({format_size(size)})")
+                except Exception as ex:
+                    log_error(f"Errore durante l'estrazione di {filename}: {ex}")
+                    stats["errors"] += 1
+                    
+    except Exception as e:
+        log_error(f"Impossibile leggere o estrarre l'archivio ZIP scaricato: {e}")
+        stats["errors"] += 1
 
 
 def _process_page(driver, current_folder: str, skip_existing: bool, cookies: dict, depth: int):

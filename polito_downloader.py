@@ -235,9 +235,6 @@ def main():
 
     # Crea cartella output
     ensure_dir(output_folder)
-    log_info(f"Materiali verranno salvati in: {os.path.abspath(output_folder)}")
-    log_info(f"Browser: {browser_name} | Headless: {headless}")
-    print()
 
     # ── Avvio browser ───────────────────────────────────────────────
     driver = create_driver(
@@ -261,7 +258,6 @@ def main():
         print()
 
         # ── Lista corsi ──────────────────────────────────────────────
-        log_info("Recupero lista corsi...")
         courses = get_courses(driver, filter_list=course_filter if course_filter else None)
 
         if not courses:

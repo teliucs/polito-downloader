@@ -33,16 +33,12 @@ def get_courses(driver, filter_list: list = None) -> list:
     Ritorna:
         Lista di dict: [{"name": "...", "url": "..."}, ...]
     """
-    log_info("Verifica pagina dei corsi...")
-
     # Naviga alla home studente solo se non ci siamo già, per evitare che Selenium si blocchi (hang) 
     # caricando un URL con hash (#) su cui siamo già posizionati.
     if "static/studente/#/didattica" not in driver.current_url.lower():
-        log_info("Navigazione alla pagina dei corsi...")
         driver.get(COURSES_URL)
         time.sleep(5)
     else:
-        log_info("Siamo già sulla pagina corretta del portale studente. Salto la navigazione diretta.")
         # Diamo comunque un piccolo tempo di assestamento per il caricamento dei dati asincroni
         time.sleep(4)
 
@@ -52,7 +48,6 @@ def get_courses(driver, filter_list: list = None) -> list:
         return []
 
     # Attende che gli elementi dei corsi siano renderizzati nella Single Page App
-    log_info("Attesa del caricamento grafico dei corsi...")
     try:
         WebDriverWait(driver, 15).until(
             lambda d: len(d.find_elements(By.XPATH, "//a[contains(@onclick, 'chiama_materia')]")) > 0

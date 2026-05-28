@@ -47,8 +47,6 @@ def create_driver(browser: str = "firefox", headless: bool = True, download_fold
 
 def _create_firefox(headless: bool, download_folder: str = None):
     """Crea un WebDriver Firefox."""
-    log_info(f"Avvio Firefox {'(headless)' if headless else '(visibile)'}...")
-
     options = FirefoxOptions()
 
     if headless:
@@ -88,7 +86,6 @@ def _create_firefox(headless: bool, download_folder: str = None):
         driver = webdriver.Firefox(service=service, options=options)
         driver.set_page_load_timeout(60)
         driver.implicitly_wait(5)
-        log_info("Firefox avviato con successo.")
         return driver
 
     except Exception as e:
@@ -100,8 +97,6 @@ def _create_firefox(headless: bool, download_folder: str = None):
 
 def _create_chrome(headless: bool, download_folder: str = None):
     """Crea un WebDriver Chrome."""
-    log_info(f"Avvio Chrome {'(headless)' if headless else '(visibile)'}...")
-
     options = ChromeOptions()
 
     if headless:
@@ -136,7 +131,6 @@ def _create_chrome(headless: bool, download_folder: str = None):
         driver = webdriver.Chrome(service=service, options=options)
         driver.set_page_load_timeout(60)
         driver.implicitly_wait(5)
-        log_info("Chrome avviato con successo.")
         return driver
 
     except Exception as e:
