@@ -87,86 +87,58 @@ def get_courses(driver, filter_list: list = None) -> list:
 
 def _extract_courses(driver) -> list:
     """
-    Estrae i corsi dalla pagina corrente.
-    Prova più strategie per trovare i link ai corsi,
-    in modo da essere robusto ai cambiamenti del portale.
+    Estrae i corsi dalla pagina corrente eseguendo un JavaScript super-veloce
+    nel browser, evitando rallentamenti o hang dovuti a roundtrip Selenium.
     """
-    courses = []
-    wait = WebDriverWait(driver, WAIT_TIMEOUT)
-
-    # ── Strategia 1: link con "materiale" o "corso" nell'URL ──────────
+    js_code = """
+    const links = document.getElementsByTagName('a');
+    const courses = [];
+    const patterns = ["materiale", "materiali", "corso", "MATERIALE", "inizio.do", "pkg_corso", "pkg_web.corso"];
+    for (let i = 0; i < links.length; i++) {
+        const link = links[i];
+        const href = link.href || '';
+        let text = link.innerText || link.textContent || '';
+        text = text.trim().replace(/\\s+/g, ' ');
+        if (!text || !href) continue;
+        
+        // Verifica se l'URL e' relativo a un corso
+        const isCourse = patterns.some(p => href.includes(p)) || 
+                         href.includes('/corso/') || 
+                         href.includes('/didattica/') ||
+                         (href.includes('static/studente') && (href.includes('/0') || href.includes('/1')));
+                         
+        if (isCourse) {
+            // Evita duplicati e link di sistema generici
+            if (!courses.some(c => c.url === href) && 
+                !href.endsWith('/didattica/') && 
+                !href.endsWith('/didattica') &&
+                !href.includes('/home') &&
+                !href.includes('/servizi') &&
+                !href.includes('/carriera') &&
+                !href.includes('/area_personale')) {
+                courses.push({ name: text, url: href });
+            }
+        }
+    }
+    return courses;
+    """
     try:
-        all_links = driver.find_elements(By.TAG_NAME, "a")
-        for link in all_links:
-            href = link.get_attribute("href") or ""
-            text = link.text.strip()
-
-            if not text or not href:
-                continue
-
-            # I link ai corsi di solito contengono questi pattern nell'URL
-            course_url_patterns = [
-                "materiale",
-                "materiali",
-                "corso",
-                "MATERIALE",
-                "inizio.do",
-                "guida_PCTO",
-                "pkg_corso",
-                "pkg_web.corso",
-            ]
-
-            is_course_link = any(pattern in href for pattern in course_url_patterns)
-
-            # Oppure sono nella sezione "I miei corsi"
-            if not is_course_link:
-                continue
-
-            # Evita duplicati
-            if not any(c["url"] == href for c in courses):
-                courses.append({"name": text, "url": href})
-
+        courses = driver.execute_script(js_code)
+        if not courses:
+            return []
+            
+        # Converti chiavi in stringhe pulite
+        cleaned_courses = []
+        for c in courses:
+            if c.get("name") and c.get("url"):
+                cleaned_courses.append({
+                    "name": str(c["name"]).strip(),
+                    "url": str(c["url"]).strip()
+                })
+        return cleaned_courses
     except Exception as e:
-        log_warn(f"Strategia 1 fallita: {e}")
-
-    # ── Strategia 2: cerca sezione "I miei corsi" ─────────────────────
-    if not courses:
-        try:
-            # Cerca heading con "corsi" o sezioni dedicate
-            sections = driver.find_elements(
-                By.CSS_SELECTOR,
-                "[class*='corso'], [class*='course'], [id*='corso'], [id*='course']"
-            )
-            for section in sections:
-                links = section.find_elements(By.TAG_NAME, "a")
-                for link in links:
-                    href = link.get_attribute("href") or ""
-                    text = link.text.strip()
-                    if text and href and href.startswith("http"):
-                        if not any(c["url"] == href for c in courses):
-                            courses.append({"name": text, "url": href})
-        except Exception as e:
-            log_warn(f"Strategia 2 fallita: {e}")
-
-    # ── Strategia 3: cerca tabelle con elenco corsi ───────────────────
-    if not courses:
-        try:
-            table_rows = driver.find_elements(By.CSS_SELECTOR, "table tr")
-            for row in table_rows:
-                cells = row.find_elements(By.TAG_NAME, "td")
-                for cell in cells:
-                    links = cell.find_elements(By.TAG_NAME, "a")
-                    for link in links:
-                        href = link.get_attribute("href") or ""
-                        text = link.text.strip()
-                        # I nomi dei corsi al PoliTo tendono ad essere in maiuscolo
-                        if text and href and len(text) > 5 and text[0].isupper():
-                            if not any(c["url"] == href for c in courses):
-                                courses.append({"name": text, "url": href})
-        except Exception as e:
-            log_warn(f"Strategia 3 fallita: {e}")
-
-    return courses
+        log_warn(f"Errore durante l'estrazione JS dei corsi: {e}")
+        return []
 
 
 def _filter_courses(courses: list, filter_list: list) -> list:
