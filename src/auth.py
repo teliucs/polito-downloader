@@ -85,7 +85,18 @@ def login(driver, username: str, password: str) -> bool:
             _submit_otp(driver, otp_code)
             time.sleep(3)
 
-        # ── Step 4: verifica login riuscito ──────────────────────────
+        # ── Step 4: attesa del completamento dell'autenticazione (redirect) ──
+        log_info("Attesa del completamento del login...")
+        try:
+            WebDriverWait(driver, 15).until(
+                lambda d: IDP_DOMAIN not in d.current_url.lower()
+            )
+            # Piccolo tempo di assestamento per far caricare il contenuto della pagina studente
+            time.sleep(2)
+        except TimeoutException:
+            pass
+
+        # ── Step 5: verifica login riuscito ──────────────────────────
         if _login_successful(driver):
             log_ok("Login effettuato con successo!")
             return True
