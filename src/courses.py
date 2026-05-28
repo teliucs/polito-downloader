@@ -16,7 +16,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from src.utils import log_info, log_warn, log_error
 
 # URL della pagina corsi (home studente)
-COURSES_URL = "https://didattica.polito.it/pls/portal30/sviluppo.pkg_web.portale_studente"
+COURSES_URL = "https://didattica.polito.it/pls/static/studente/#/"
 
 WAIT_TIMEOUT = 20
 
@@ -37,7 +37,8 @@ def get_courses(driver, filter_list: list = None) -> list:
 
     # Naviga alla home studente
     driver.get(COURSES_URL)
-    time.sleep(3)
+    # Diamo tempo alla Single Page App di caricare i dati dall'API
+    time.sleep(5)
 
     # Se la pagina richiede di nuovo il login, segnala l'errore
     if "idp.polito.it" in driver.current_url:
@@ -49,6 +50,23 @@ def get_courses(driver, filter_list: list = None) -> list:
     if not courses:
         log_warn("Nessun corso trovato. Potrebbe essere un problema con la struttura del portale.")
         log_warn(f"URL corrente: {driver.current_url}")
+        
+        # DUMP DI DIAGNOSTICA
+        log_info("--- DIAGNOSTICA: Elenco di tutti i link visibili sulla pagina ---")
+        try:
+            all_links = driver.find_elements(By.TAG_NAME, "a")
+            count = 0
+            for l in all_links:
+                href = l.get_attribute("href") or ""
+                text = l.text.strip().replace("\n", " ")
+                if text or href:
+                    log_info(f"Link: text='{text}' | href='{href}'")
+                    count += 1
+                    if count > 45:
+                        break
+        except Exception as e:
+            log_error(f"Errore durante la diagnostica dei link: {e}")
+            
         return []
 
     log_info(f"Trovati {len(courses)} corsi nel portale.")
