@@ -1,0 +1,36 @@
+# ============================================================
+#  config.yaml.example — Copia questo file in config.yaml
+#  e inserisci le tue credenziali PoliTo
+#  ⚠️  NON committare mai config.yaml su Git!
+# ============================================================
+
+polito:
+  # La tua matricola (es. s123456) o username Polito
+  username: "s123456"
+  # La tua password del portale didattica
+  password: "la_tua_password"
+
+download:
+  # Cartella dove verranno salvati i materiali
+  # Verrà creata automaticamente se non esiste
+  output_folder: "./downloads"
+
+  # Modalità headless: true = browser invisibile (consigliato)
+  #                    false = apre il browser visibile (utile per debug)
+  headless: true
+
+  # Browser da usare: "firefox" oppure "chrome"
+  browser: "firefox"
+
+  # Lista dei corsi da scaricare. Lascia vuota [] per scaricarli TUTTI.
+  # Usa il nome esatto del corso come appare nel portale, oppure
+  # una parte del nome (ricerca parziale, case-insensitive).
+  # Esempio:
+  #   courses:
+  #     - "Analisi Matematica II"
+  #     - "Fisica"
+  courses: []
+
+  # Se true, salta i file già presenti nella cartella locale.
+  # Se false, ri-scarica sempre tutto (più lento).
+  skip_existing: true

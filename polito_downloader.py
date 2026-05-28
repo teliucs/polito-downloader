@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+polito_downloader.py — Script principale per scaricare i materiali
+                        del Portale della Didattica del Politecnico di Torino.
+
+Uso:
+    python polito_downloader.py                     # usa config.yaml
+    python polito_downloader.py --config altro.yaml  # usa un altro file di config
+    python polito_downloader.py --list-courses       # mostra solo i corsi disponibili
+    python polito_downloader.py --no-headless        # apre il browser visibile (debug)
+
+Per iniziare:
+    1. Copia config.yaml.example -> config.yaml
+    2. Inserisci le tue credenziali PoliTo in config.yaml
+    3. Esegui: python polito_downloader.py
+"""
+
+import sys
+import os
+import argparse
+import yaml
+from colorama import init, Fore, Style
+
+# Forza UTF-8 su Windows per evitare UnicodeEncodeError nella console
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+
+init(autoreset=True)
+
+from src.browser import create_driver
+from src.auth import login
+from src.courses import get_courses, print_courses
+from src.materials import download_course_materials, print_summary, reset_stats
+from src.utils import log_info, log_ok, log_warn, log_error, ensure_dir
+
+
+# ─────────────────────────────────────────────────────────────
+#  Banner ASCII
+# ─────────────────────────────────────────────────────────────
+
+BANNER = f"""
+{Fore.CYAN}+-------------------------------------------------------+
+|   {Fore.WHITE}PoliTo Material Downloader{Fore.CYAN}                        |
+|   {Fore.WHITE}Portale della Didattica - Politecnico di Torino{Fore.CYAN}   |
+|   {Fore.GREEN}github.com/loren/PoliTo-downloader{Fore.CYAN}                |
++-------------------------------------------------------+{Style.RESET_ALL}
+"""
+
+
+# ─────────────────────────────────────────────────────────────
+#  Caricamento configurazione
+# ─────────────────────────────────────────────────────────────
+
+DEFAULT_CONFIG = {
+    "polito": {
+        "username": "",
+        "password": "",
+    },
+    "download": {
+        "output_folder": "./downloads",
+        "headless": True,
+        "browser": "firefox",
+        "courses": [],
+        "skip_existing": True,
+    }
+}
+
+
+def load_config(config_path: str) -> dict:
+    """Carica e valida il file di configurazione YAML."""
+    if not os.path.isfile(config_path):
+        log_error(f"File di configurazione non trovato: {config_path}")
+        log_warn("Copia config.yaml.example → config.yaml e inserisci le tue credenziali.")
+        sys.exit(1)
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = yaml.safe_load(f)
+
+    # Merge con default (per campi mancanti)
+    merged = DEFAULT_CONFIG.copy()
+    if config:
+        if "polito" in config:
+            merged["polito"].update(config["polito"])
+        if "download" in config:
+            merged["download"].update(config["download"])
+
+    # Validazione
+    if not merged["polito"]["username"] or not merged["polito"]["password"]:
+        log_error("Username o password mancanti in config.yaml!")
+        log_warn("Modifica config.yaml e inserisci le tue credenziali PoliTo.")
+        sys.exit(1)
+
+    return merged
+
+
+# ─────────────────────────────────────────────────────────────
+#  Argomenti da riga di comando
+# ─────────────────────────────────────────────────────────────
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Scarica i materiali del Portale della Didattica del Politecnico di Torino.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Esempi:
+  python polito_downloader.py                     # Scarica tutti i corsi
+  python polito_downloader.py --list-courses       # Mostra corsi disponibili
+  python polito_downloader.py --no-headless        # Apre il browser visibile
+  python polito_downloader.py --config altro.yaml  # Usa altro file di config
+        """
+    )
+
+    parser.add_argument(
+        "--config", "-c",
+        default="config.yaml",
+        help="Percorso al file di configurazione (default: config.yaml)"
+    )
+    parser.add_argument(
+        "--list-courses",
+        action="store_true",
+        help="Mostra solo la lista dei corsi disponibili senza scaricare"
+    )
+    parser.add_argument(
+        "--no-headless",
+        action="store_true",
+        help="Apre il browser in modo visibile (utile per debug o 2FA)"
+    )
+    parser.add_argument(
+        "--course",
+        type=str,
+        help="Scarica solo un corso specifico (nome parziale, sovrascrive config.yaml)"
+    )
+
+    return parser.parse_args()
+
+
+# ─────────────────────────────────────────────────────────────
+#  Main
+# ─────────────────────────────────────────────────────────────
+
+def main():
+    print(BANNER)
+
+    # Parsing argomenti
+    args = parse_args()
+
+    # Carica configurazione
+    config = load_config(args.config)
+
+    # Override da argomenti CLI
+    if args.no_headless:
+        config["download"]["headless"] = False
+    if args.course:
+        config["download"]["courses"] = [args.course]
+
+    # Impostazioni
+    username      = config["polito"]["username"]
+    password      = config["polito"]["password"]
+    output_folder = config["download"]["output_folder"]
+    headless      = config["download"]["headless"]
+    browser_name  = config["download"].get("browser", "firefox")
+    course_filter = config["download"].get("courses", [])
+    skip_existing = config["download"].get("skip_existing", True)
+
+    # Crea cartella output
+    ensure_dir(output_folder)
+    log_info(f"Materiali verranno salvati in: {os.path.abspath(output_folder)}")
+    log_info(f"Browser: {browser_name} | Headless: {headless}")
+    print()
+
+    # ── Avvio browser ───────────────────────────────────────────────
+    driver = create_driver(
+        browser=browser_name,
+        headless=headless,
+        download_folder=os.path.join(output_folder, "_tmp_browser_dl")
+    )
+    if driver is None:
+        log_error("Impossibile avviare il browser. Controlla l'installazione.")
+        sys.exit(1)
+
+    try:
+        # ── Login ────────────────────────────────────────────────────
+        log_info(f"Login come: {username}")
+        success = login(driver, username, password)
+
+        if not success:
+            log_error("Login fallito. Verifica le credenziali in config.yaml.")
+            sys.exit(1)
+
+        print()
+
+        # ── Lista corsi ──────────────────────────────────────────────
+        log_info("Recupero lista corsi...")
+        courses = get_courses(driver, filter_list=course_filter if course_filter else None)
+
+        if not courses:
+            log_warn("Nessun corso trovato. Il portale potrebbe avere una struttura diversa.")
+            log_warn("Prova ad eseguire con --no-headless per vedere cosa succede nel browser.")
+            sys.exit(1)
+
+        print()
+        log_ok(f"Corsi trovati ({len(courses)}):")
+        print_courses(courses)
+        print()
+
+        # Se richiesto solo elenco corsi, esci qui
+        if args.list_courses:
+            log_info("Modalità --list-courses: nessun download effettuato.")
+            return
+
+        # ── Download materiali ───────────────────────────────────────
+        log_info("Avvio download materiali...")
+        print("─" * 50)
+
+        reset_stats()
+        for i, course in enumerate(courses, 1):
+            print()
+            print(f"{Fore.CYAN}[{i}/{len(courses)}]{Style.RESET_ALL} {course['name']}")
+            try:
+                download_course_materials(
+                    driver=driver,
+                    course=course,
+                    output_folder=output_folder,
+                    skip_existing=skip_existing,
+                )
+            except Exception as e:
+                log_error(f"Errore nel corso '{course['name']}': {e}")
+                continue
+
+        # Riepilogo finale
+        print_summary()
+        log_ok(f"Materiali salvati in: {os.path.abspath(output_folder)}")
+
+    except KeyboardInterrupt:
+        print()
+        log_warn("Download interrotto dall'utente (Ctrl+C).")
+        print_summary()
+
+    finally:
+        log_info("Chiusura browser...")
+        try:
+            driver.quit()
+        except Exception:
+            pass
+
+
+if __name__ == "__main__":
+    main()
