@@ -103,7 +103,7 @@ python polito_downloader.py --list-courses
 
 ### Scarica solo un corso specifico (senza mostrare il menu di selezione)
 ```bash
-python polito_downloader.py --course "Strategy and Organization"
+python polito_downloader.py --course "Nome Corso"
 ```
 
 ### Rendi visibile il browser (utile per debug o se riscontri problemi)
@@ -119,14 +119,14 @@ I materiali verranno salvati in una cartella chiamata **`downloads/`** creata al
 
 ```
 downloads/
-├── Strategy and Organization/
-│   ├── Syllabus 2025-26.docx
-│   ├── Business Game/
-│   │   ├── 1 Introduction CVC.pdf
-│   │   └── Team Logbook.docx
-│   └── case studies/
-│       ├── C3. Airline sector.pdf
-│       └── C5. IKEA Case Notes.pdf
+├── Nome Insegnamento 1/
+│   ├── Programma del Corso.docx
+│   ├── Slide Lezioni/
+│   │   ├── Lezione 1 - Introduzione.pdf
+│   │   └── Lezione 2.pdf
+│   └── Esercitazioni/
+│       ├── Esercizio 1.pdf
+│       └── Soluzione Esercizio 1.pdf
 └── ...
 ```
 
