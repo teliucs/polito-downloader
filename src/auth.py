@@ -73,7 +73,10 @@ def login(driver, username: str, password: str) -> bool:
         # Submit
         submit_btn = driver.find_element(By.CSS_SELECTOR, "button[type='submit'], input[type='submit']")
         submit_btn.click()
-        time.sleep(3)
+        time.sleep(4)
+
+        # ── Step 2.5: gestione eventuale pagina intermedia MFA Management (Skip) ──
+        _handle_mfa_setup_prompt(driver)
 
         # ── Step 3: gestione eventuale 2FA / OTP ─────────────────────
         if _is_otp_required(driver):
@@ -247,3 +250,51 @@ def _get_login_error_message(driver) -> str:
     except Exception:
         pass
     return None
+
+
+def _handle_mfa_setup_prompt(driver) -> bool:
+    """
+    Gestisce la pagina intermedia "MFA Management" cliccando su "Skip" se presente.
+    """
+    try:
+        # Diamo un secondo per far caricare bene la pagina se fosse lenta
+        time.sleep(1)
+        page_source = driver.page_source.lower()
+        if "mfa management" in page_source or "multifactor authentication method" in page_source:
+            log_info("Rilevata pagina 'MFA Management'. Provo a cliccare su 'Skip'...")
+            
+            # Cerca il pulsante "Skip"
+            # 1. Tramite testo (case-insensitive o parziale)
+            skip_buttons = driver.find_elements(
+                By.XPATH, 
+                "//button[contains(text(), 'Skip') or contains(translate(text(), 'SKP', 'skp'), 'skip')] | "
+                "//a[contains(text(), 'Skip') or contains(translate(text(), 'SKP', 'skp'), 'skip')] | "
+                "//input[@type='submit' and (contains(@value, 'Skip') or contains(@value, 'skip'))]"
+            )
+            
+            if skip_buttons:
+                for btn in skip_buttons:
+                    if btn.is_displayed():
+                        driver.execute_script("arguments[0].click();", btn)
+                        log_ok("Cliccato su 'Skip' tramite JavaScript.")
+                        time.sleep(4)
+                        return True
+            
+            # 2. Tramite attributi (id, name, class)
+            fallback_selectors = [
+                "button[name*='skip']", "input[name*='skip']", "a[class*='skip']",
+                "button[id*='skip']", "input[id*='skip']",
+                "[name*='_skip']", "[id*='_skip']"
+            ]
+            for sel in fallback_selectors:
+                elements = driver.find_elements(By.CSS_SELECTOR, sel)
+                for el in elements:
+                    if el.is_displayed():
+                        driver.execute_script("arguments[0].click();", el)
+                        log_ok(f"Cliccato su fallback skip ({sel}) tramite JavaScript.")
+                        time.sleep(4)
+                        return True
+                        
+    except Exception as e:
+        log_warn(f"Errore durante la gestione della pagina MFA Management: {e}")
+    return False
