@@ -89,17 +89,16 @@ def _extract_courses(driver) -> list:
     """
     Estrae i corsi dalla pagina corrente eseguendo un JavaScript super-veloce
     nel browser, evitando rallentamenti o hang dovuti a roundtrip Selenium.
+    Supporta il recupero di chiama_materia con estrazione testo dal parent container.
     """
     js_code = """
     const links = document.getElementsByTagName('a');
     const courses = [];
-    const patterns = ["materiale", "materiali", "corso", "MATERIALE", "inizio.do", "pkg_corso", "pkg_web.corso"];
+    const patterns = ["materiale", "materiali", "corso", "MATERIALE", "inizio.do", "pkg_corso", "pkg_web.corso", "chiama_materia"];
     for (let i = 0; i < links.length; i++) {
         const link = links[i];
         const href = link.href || '';
-        let text = link.innerText || link.textContent || '';
-        text = text.trim().replace(/\\s+/g, ' ');
-        if (!text || !href) continue;
+        if (!href) continue;
         
         // Verifica se l'URL e' relativo a un corso
         const isCourse = patterns.some(p => href.includes(p)) || 
@@ -109,14 +108,59 @@ def _extract_courses(driver) -> list:
                          
         if (isCourse) {
             // Evita duplicati e link di sistema generici
-            if (!courses.some(c => c.url === href) && 
-                !href.endsWith('/didattica/') && 
-                !href.endsWith('/didattica') &&
-                !href.includes('/home') &&
-                !href.includes('/servizi') &&
-                !href.includes('/carriera') &&
-                !href.includes('/area_personale')) {
-                courses.push({ name: text, url: href });
+            if (href.endsWith('/didattica/') || 
+                href.endsWith('/didattica') ||
+                href.includes('/home') ||
+                href.includes('/servizi') ||
+                href.includes('/carriera') ||
+                href.includes('/area_personale')) {
+                continue;
+            }
+            
+            let text = link.innerText || link.textContent || '';
+            text = text.trim().replace(/\\s+/g, ' ');
+            
+            // Gestione dei link chiama_materia del nuovo portale
+            if (href.includes('chiama_materia') && href.includes('cod_ins=')) {
+                const match = href.match(/cod_ins=([^&]+)/);
+                if (match) {
+                    const cod_ins = match[1];
+                    
+                    // Se il link ha testo vuoto (perche' racchiude una card), risale ai genitori
+                    if (!text || text.length < 3) {
+                        let parent = link.parentElement;
+                        for (let depth = 0; depth < 4; depth++) {
+                            if (parent) {
+                                const pText = (parent.innerText || parent.textContent || '').trim();
+                                if (pText && pText.length > 5) {
+                                    text = pText;
+                                    break;
+                                }
+                                parent = parent.parentElement;
+                            }
+                        }
+                    }
+                    
+                    // Isola il nome del corso eliminando il codice corso e quello che segue
+                    if (text) {
+                        text = text.replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim();
+                        const codeIndex = text.indexOf(cod_ins);
+                        if (codeIndex > 0) {
+                            text = text.substring(0, codeIndex).trim();
+                        }
+                    }
+                    
+                    if (!text) {
+                        text = "Corso " + cod_ins;
+                    }
+                }
+            }
+            
+            if (text) {
+                text = text.trim();
+                if (!courses.some(c => c.url === href)) {
+                    courses.push({ name: text, url: href });
+                }
             }
         }
     }
