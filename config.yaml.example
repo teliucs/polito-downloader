@@ -1,38 +1,12 @@
-# ============================================================
-#  config.yaml.example — Copia questo file in config.yaml
-#  per personalizzare le impostazioni di download.
+# ====================================================================
+#  config.yaml.example — Esempio di configurazione delle credenziali.
+#  Copia questo file come "config.yaml" e inserisci i tuoi dati in locale.
 #
-#  Le credenziali (matricola e password) possono essere inserite
-#  qui sotto per evitare di digitarle ogni volta, oppure lasciate
-#  vuote per chiederle nel terminale (in chiaro).
-# ============================================================
+#  IMPORTANTE: Non caricare MAI il file "config.yaml" su GitHub!
+#  Il file "config.yaml" è già inserito nel file .gitignore per sicurezza,
+#  quindi non verrà mai tracciato dal tuo repository Git.
+# ====================================================================
 
 credentials:
-  username: ""            # Inserisci qui la tua matricola (es. "s123456")
-  password: ""            # Inserisci qui la tua password del portale
-
-
-download:
-  # Cartella dove verranno salvati i materiali
-  # Verrà creata automaticamente se non esiste
-  output_folder: "./downloads"
-
-  # Modalità headless: true = browser invisibile (consigliato)
-  #                    false = apre il browser visibile (utile per debug)
-  headless: true
-
-  # Browser da usare: "firefox" oppure "chrome"
-  browser: "firefox"
-
-  # Lista dei corsi da scaricare. Lascia vuota [] per scaricarli TUTTI.
-  # Usa il nome esatto del corso come appare nel portale, oppure
-  # una parte del nome (ricerca parziale, case-insensitive).
-  # Esempio:
-  #   courses:
-  #     - "Analisi Matematica II"
-  #     - "Fisica"
-  courses: []
-
-  # Se true, salta i file già presenti nella cartella locale.
-  # Se false, ri-scarica sempre tutto (più lento).
-  skip_existing: true
+  username: "s359563"             # Sostituisci con la tua matricola (es. s123456)
+  password: "LaTuaPasswordQui"    # Sostituisci con la tua password del portale in chiaro
