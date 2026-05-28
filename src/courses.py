@@ -16,7 +16,7 @@ from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from src.utils import log_info, log_warn, log_error
 
 # URL della pagina corsi (home studente)
-COURSES_URL = "https://didattica.polito.it/pls/static/studente/#/"
+COURSES_URL = "https://didattica.polito.it/pls/static/studente/#/didattica"
 
 WAIT_TIMEOUT = 20
 
@@ -37,7 +37,7 @@ def get_courses(driver, filter_list: list = None) -> list:
 
     # Naviga alla home studente solo se non ci siamo già, per evitare che Selenium si blocchi (hang) 
     # caricando un URL con hash (#) su cui siamo già posizionati.
-    if "static/studente" not in driver.current_url.lower():
+    if "static/studente/#/didattica" not in driver.current_url.lower():
         log_info("Navigazione alla pagina dei corsi...")
         driver.get(COURSES_URL)
         time.sleep(5)

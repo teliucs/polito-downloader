@@ -130,6 +130,39 @@ def ask_credentials(config: dict) -> tuple:
     return str(username), str(password)
 
 
+def prompt_course_selection(courses: list) -> list:
+    """
+    Mostra un menu interattivo nel terminale per permettere all'utente
+    di selezionare quali corsi scaricare.
+    """
+    print(f"{Fore.CYAN}--- Selezione Corsi da scaricare ---{Style.RESET_ALL}")
+    print(f"  0. {Fore.GREEN}[Scarica TUTTI i corsi]{Style.RESET_ALL}")
+    for i, course in enumerate(courses, 1):
+        print(f"  {i}. {course['name']}")
+    
+    print()
+    selection = input(f"  ➜ Inserisci i numeri dei corsi da scaricare separati da virgola (es. 1,3 o 0 per tutti): ").strip()
+    
+    if not selection or selection == "0":
+        return courses
+        
+    selected_courses = []
+    parts = selection.split(",")
+    for part in parts:
+        try:
+            idx = int(part.strip())
+            if 1 <= idx <= len(courses):
+                selected_courses.append(courses[idx - 1])
+        except ValueError:
+            pass
+            
+    if not selected_courses:
+        log_warn("Nessuna selezione valida. Verranno scaricati TUTTI i corsi.")
+        return courses
+        
+    return selected_courses
+
+
 # ─────────────────────────────────────────────────────────────
 #  Argomenti da riga di comando
 # ─────────────────────────────────────────────────────────────
@@ -245,6 +278,11 @@ def main():
         if args.list_courses:
             log_info("Modalità --list-courses: nessun download effettuato.")
             return
+
+        # Chiedi selezione corsi se non ci sono filtri preimpostati (CLI o config)
+        if not course_filter:
+            courses = prompt_course_selection(courses)
+            print()
 
         # ── Download materiali ───────────────────────────────────────
         log_info("Avvio download materiali...")
