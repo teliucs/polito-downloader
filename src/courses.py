@@ -88,92 +88,51 @@ def get_courses(driver, filter_list: list = None) -> list:
 def _extract_courses(driver) -> list:
     """
     Estrae i corsi dalla pagina corrente eseguendo un JavaScript super-veloce
-    nel browser, evitando rallentamenti o hang dovuti a roundtrip Selenium.
-    Supporta il recupero di chiama_materia con estrazione testo dal parent container.
+    che analizza l'evento 'onclick' delle card dei corsi per recuperare l'URL reale
+    e isolare il nome del corso, escludendo notifiche, avvisi e linguette di navigazione.
     """
-    try:
-        log_info("--- DIAGNOSTICA CARD CORSO ---")
-        elem = driver.find_element(By.XPATH, "//*[contains(text(), 'Accounting and Corporate')]")
-        log_info(f"Trovato elemento testo: <{elem.tag_name}> '{elem.text}'")
-        
-        parent = elem
-        for depth in range(1, 5):
-            parent = parent.find_element(By.XPATH, "..")
-            log_info(f"Genitore Livello {depth}: <{parent.tag_name}> class='{parent.get_attribute('class')}' id='{parent.get_attribute('id')}' outerHTML={parent.get_attribute('outerHTML')[:600]}...")
-    except Exception as e:
-        log_warn(f"Errore diagnostica card: {e}")
-
     js_code = """
     const links = document.getElementsByTagName('a');
     const courses = [];
-    const patterns = ["materiale", "materiali", "corso", "MATERIALE", "inizio.do", "pkg_corso", "pkg_web.corso", "chiama_materia"];
     for (let i = 0; i < links.length; i++) {
         const link = links[i];
-        const href = link.href || '';
-        if (!href) continue;
+        const onclick = link.getAttribute('onclick') || '';
         
-        // Verifica se l'URL e' relativo a un corso
-        const isCourse = patterns.some(p => href.includes(p)) || 
-                         href.includes('/corso/') || 
-                         href.includes('/didattica/') ||
-                         (href.includes('static/studente') && (href.includes('/0') || href.includes('/1')));
-                         
-        if (isCourse) {
-            // Evita duplicati e link di sistema generici
-            if (href.endsWith('/didattica/') || 
-                href.endsWith('/didattica') ||
-                href.includes('/home') ||
-                href.includes('/servizi') ||
-                href.includes('/carriera') ||
-                href.includes('/area_personale')) {
-                continue;
-            }
-            
-            let text = link.innerText || link.textContent || '';
-            text = text.trim().replace(/\\s+/g, ' ');
-            
-            // Gestione dei link chiama_materia del nuovo portale
-            if (href.includes('chiama_materia') && href.includes('cod_ins=')) {
-                const match = href.match(/cod_ins=([^&]+)/);
-                if (match) {
-                    const cod_ins = match[1];
-                    
-                    // Se il link ha testo vuoto (perche' racchiude una card), risale ai genitori
-                    if (!text || text.length < 3) {
-                        let parent = link.parentElement;
-                        for (let depth = 0; depth < 4; depth++) {
-                            if (parent) {
-                                const pText = (parent.innerText || parent.textContent || '').trim();
-                                if (pText && pText.length > 5) {
-                                    text = pText;
-                                    break;
-                                }
-                                parent = parent.parentElement;
-                            }
-                        }
-                    }
-                    
-                    // Isola il nome del corso eliminando il codice corso e quello che segue
-                    if (text) {
-                        text = text.replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim();
-                        const codeIndex = text.indexOf(cod_ins);
-                        if (codeIndex > 0) {
-                            text = text.substring(0, codeIndex).trim();
-                        }
-                    }
-                    
-                    if (!text) {
-                        text = "Corso " + cod_ins;
-                    }
-                }
-            }
-            
-            if (text) {
-                text = text.trim();
-                if (!courses.some(c => c.url === href)) {
-                    courses.push({ name: text, url: href });
-                }
-            }
+        // Verifica se e' la card reale di un corso
+        if (!onclick || !onclick.includes('chiama_materia')) continue;
+        
+        // Estrae l'URL dal parametro del gestore javascript click (markAsReadAndRedirect)
+        const urlMatch = onclick.match(/'(https?:\\/\\/[^']+)'/);
+        if (!urlMatch) continue;
+        const url = urlMatch[1].replace(/&amp;/g, '&');
+        
+        // Estrae il codice insegnamento
+        const codMatch = url.match(/cod_ins=([^&]+)/);
+        if (!codMatch) continue;
+        const cod_ins = codMatch[1];
+        
+        // Estrae il testo interno alla card (contiene nome del corso e dettagli)
+        let text = link.innerText || link.textContent || '';
+        text = text.replace(/\\n/g, ' ').replace(/\\s+/g, ' ').trim();
+        
+        // Isola il nome pulito del corso tagliando via il codice corso e quello che segue
+        const codeIndex = text.indexOf(cod_ins);
+        if (codeIndex > 0) {
+            text = text.substring(0, codeIndex).trim();
+        }
+        
+        // Pulisce eventuali caratteri di punteggiatura residui (es. trattini finali)
+        if (text.endsWith('-')) {
+            text = text.substring(0, text.length - 1).trim();
+        }
+        
+        if (!text) {
+            text = "Corso " + cod_ins;
+        }
+        
+        // Aggiunge all'elenco se non e' gia' presente
+        if (!courses.some(c => c.url === url)) {
+            courses.push({ name: text, url: url });
         }
     }
     return courses;
